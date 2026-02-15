@@ -306,7 +306,10 @@ function loadLeaderboardRecords() {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    const resetAfter = getGlobalDataConfig().leaderboardResetAfter;
+    if (!resetAfter) return parsed;
+    return parsed.filter((r) => (Number(r?.createdAt) || 0) >= resetAfter);
   } catch {
     return [];
   }
@@ -320,13 +323,63 @@ function getGlobalDataConfig() {
     provider: String(cfg.provider || "").toLowerCase(),
     supabaseUrl: String(cfg.supabaseUrl || "").trim(),
     supabaseAnonKey: String(cfg.supabaseAnonKey || "").trim(),
-    table: String(cfg.table || "leaderboard_runs").trim()
+    table: String(cfg.table || "leaderboard_runs").trim(),
+    leaderboardResetAfter: Math.max(0, Number(cfg.leaderboardResetAfter) || 0)
   };
 }
 
 function canUseSupabaseGlobal() {
   const cfg = getGlobalDataConfig();
   return cfg.provider === "supabase" && Boolean(cfg.supabaseUrl) && Boolean(cfg.supabaseAnonKey) && Boolean(cfg.table);
+}
+
+function normalizeStudioName(input) {
+  return String(input || "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function isStudioNameTakenLocal(name) {
+  const target = normalizeStudioName(name);
+  if (!target) return false;
+  for (let i = 1; i <= 3; i += 1) {
+    const slot = loadSlotData(i);
+    if (!slot || !slot.studioName) continue;
+    if (normalizeStudioName(slot.studioName) === target) return true;
+  }
+  return false;
+}
+
+async function isStudioNameTakenGlobal(name) {
+  if (!canUseSupabaseGlobal()) return false;
+  const cfg = getGlobalDataConfig();
+  const base = cfg.supabaseUrl.replace(/\/+$/, "");
+  const table = encodeURIComponent(cfg.table);
+  const resetFilter = cfg.leaderboardResetAfter > 0 ? `&createdAt=gte.${cfg.leaderboardResetAfter}` : "";
+  const studioParam = encodeURIComponent(normalizeStudioName(name));
+  const endpoint = `${base}/rest/v1/${table}?select=studioName&limit=1${resetFilter}&studioName=ilike.${studioParam}`;
+  try {
+    const res = await fetch(endpoint, {
+      headers: {
+        apikey: cfg.supabaseAnonKey,
+        Authorization: `Bearer ${cfg.supabaseAnonKey}`
+      }
+    });
+    if (!res.ok) return false;
+    const rows = await res.json();
+    return Array.isArray(rows) && rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function applyForcedGlobalResetIfNeeded() {
+  const cfg = getGlobalDataConfig();
+  if (!cfg.leaderboardResetAfter) return;
+  const markerKey = "rbx_dev_reset_marker_v1";
+  const marker = Number(localStorage.getItem(markerKey) || 0);
+  if (marker >= cfg.leaderboardResetAfter) return;
+  for (let i = 1; i <= 3; i += 1) localStorage.removeItem(slotKey(i));
+  localStorage.removeItem(leaderboardKey);
+  localStorage.setItem(markerKey, String(cfg.leaderboardResetAfter));
 }
 
 async function pushGlobalLeaderboardRecord(record) {
@@ -607,10 +660,19 @@ function selectSlot(slot) {
   openCreateForSlot(slot);
 }
 
-function createSlotSave() {
+async function createSlotSave() {
   if (!pendingSlotForCreation) return;
   const name = (els.slotStudioName.value || "").trim();
   if (!name) return;
+  if (isStudioNameTakenLocal(name)) {
+    window.alert("That studio name is already used in a save slot. Choose a different name.");
+    return;
+  }
+  const takenGlobal = await isStudioNameTakenGlobal(name);
+  if (takenGlobal) {
+    window.alert("That studio name is already used globally. Choose a unique studio name.");
+    return;
+  }
   activeSlot = pendingSlotForCreation;
   applyLoadedState(createDefaultState(name));
   saveCurrentSlot();
@@ -1819,9 +1881,14 @@ function disbandStudio() {
 document.querySelectorAll(".slot-btn").forEach((btn) => {
   btn.addEventListener("click", () => selectSlot(Number(btn.dataset.slot)));
 });
-els.slotCreateBtn.addEventListener("click", createSlotSave);
+els.slotCreateBtn.addEventListener("click", () => {
+  void createSlotSave();
+});
 els.slotStudioName.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") createSlotSave();
+  if (e.key === "Enter") {
+    e.preventDefault();
+    void createSlotSave();
+  }
 });
 els.adLaunchBtn.addEventListener("click", () => completePendingRelease(true));
 els.adSkipBtn.addEventListener("click", () => completePendingRelease(false));
@@ -1905,6 +1972,7 @@ els.gameList.addEventListener("click", (event) => {
 });
 
 window.addEventListener("beforeunload", saveCurrentSlot);
+applyForcedGlobalResetIfNeeded();
 initCollapsibleCards();
 refreshSlotButtons();
 syncStudioNameLocked();

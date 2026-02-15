@@ -271,14 +271,19 @@
 
     function getHistoricalRecords() {
       const parsed = parseJson(localStorage.getItem(leaderboardKey), []);
-      return Array.isArray(parsed) ? parsed : [];
+      if (!Array.isArray(parsed)) return [];
+      const resetAfter = Math.max(0, Number(globalCfg.leaderboardResetAfter) || 0);
+      if (!resetAfter) return parsed;
+      return parsed.filter((r) => (Number(r?.createdAt) || 0) >= resetAfter);
     }
 
     async function getRemoteRecords() {
       if (!canUseSupabaseGlobal()) return [];
       const urlBase = String(globalCfg.supabaseUrl || "").replace(/\/+$/, "");
       const table = encodeURIComponent(String(globalCfg.table || "leaderboard_runs"));
-      const query = "select=*&order=score.desc&limit=500";
+      const resetAfter = Math.max(0, Number(globalCfg.leaderboardResetAfter) || 0);
+      const resetFilter = resetAfter > 0 ? `&createdAt=gte.${resetAfter}` : "";
+      const query = `select=*&order=score.desc&limit=500${resetFilter}`;
       try {
         const res = await fetch(`${urlBase}/rest/v1/${table}?${query}`, {
           headers: {
