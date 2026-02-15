@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BlockForge Leaderboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-deep: #0e1a2b;
+      --bg-mid: #17314f;
+      --panel: rgba(8, 17, 30, 0.82);
+      --panel-soft: rgba(255, 255, 255, 0.08);
+      --text: #f5f8fc;
+      --muted: #a8bed8;
+      --accent: #5dc5ff;
+      --line: rgba(255, 255, 255, 0.16);
+      --good: #6fe7ad;
+      --bad: #ff7f7f;
+      --shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      font-family: "Outfit", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(93, 197, 255, 0.2), transparent 38%),
+        radial-gradient(circle at 85% 88%, rgba(244, 185, 66, 0.18), transparent 30%),
+        linear-gradient(145deg, var(--bg-deep), var(--bg-mid));
+      padding: 14px;
+    }
+
+    .shell {
+      max-width: 1520px;
+      margin: 0 auto;
+      display: grid;
+      gap: 10px;
+      min-height: calc(100vh - 28px);
+      grid-template-rows: auto 1fr;
+    }
+
+    .hero, .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 12px;
+    }
+
+    h1, h2 {
+      font-family: "Bebas Neue", sans-serif;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+    }
+
+    h1 { font-size: clamp(1.8rem, 3vw, 2.5rem); }
+    h2 { font-size: 1.2rem; margin-bottom: 8px; }
+
+    .toolbar {
+      margin-top: 8px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    button, .link-btn {
+      border: none;
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-family: inherit;
+      font-weight: 600;
+      color: #0b1220;
+      background: linear-gradient(130deg, #86d6ff, #5dc5ff);
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .grid {
+      display: grid;
+      gap: 10px;
+      min-height: 0;
+      grid-template-columns: 1.2fr 1fr;
+    }
+
+    .card {
+      min-height: 0;
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 8px 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.11);
+      white-space: nowrap;
+    }
+
+    th { color: var(--muted); font-size: 0.76rem; letter-spacing: 0.03em; }
+
+    tr:hover { background: rgba(255, 255, 255, 0.06); cursor: pointer; }
+    tr.active { background: rgba(93, 197, 255, 0.2); }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .stat {
+      background: var(--panel-soft);
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      border-radius: 10px;
+      padding: 8px;
+      font-size: 0.85rem;
+    }
+
+    .stat small {
+      color: var(--muted);
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.72rem;
+    }
+
+    .muted { color: var(--muted); }
+    .good { color: var(--good); }
+    .bad { color: var(--bad); }
+
+    @media (max-width: 1100px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <h1>Global Studio Leaderboard</h1>
+      <div class="muted">Top 100 is combined from archived disbanded runs and active save slots.</div>
+      <div class="toolbar">
+        <a class="link-btn" href="index.html">Back To Dashboard</a>
+        <button id="refreshBtn">Refresh Leaderboard</button>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Top 100</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Studio</th>
+              <th>Score</th>
+              <th>Net</th>
+              <th>Visits</th>
+              <th>Games</th>
+              <th>Runtime</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </article>
+
+      <article class="card">
+        <h2 id="detailTitle">Run Details</h2>
+        <div id="detailHint" class="muted">Select a row to view complete studio stats.</div>
+        <div id="detailWrap" style="display:none;">
+          <div class="stats" id="detailStats"></div>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script>
+    const leaderboardKey = "rbx_dev_leaderboard_v1";
+    const rowBody = document.getElementById("rows");
+    const detailTitle = document.getElementById("detailTitle");
+    const detailHint = document.getElementById("detailHint");
+    const detailWrap = document.getElementById("detailWrap");
+    const detailStats = document.getElementById("detailStats");
+    const globalCfg = (window.GLOBAL_DATA_CONFIG && typeof window.GLOBAL_DATA_CONFIG === "object")
+      ? window.GLOBAL_DATA_CONFIG
+      : {};
+
+    function fmtMoney(num) {
+      return "R$" + Math.round(Number(num) || 0).toLocaleString();
+    }
+    function fmtNum(num) {
+      return Math.round(Number(num) || 0).toLocaleString();
+    }
+    function fmtOne(num) {
+      return (Number(num) || 0).toFixed(1);
+    }
+    function formatDuration(daysInput) {
+      const d = Math.max(0, Math.floor(Number(daysInput) || 0));
+      const y = Math.floor(d / 365);
+      const rem = d % 365;
+      const m = Math.floor(rem / 30);
+      const day = rem % 30;
+      return `${y}y ${m}m ${day}d`;
+    }
+    function calculateStudioScore(data) {
+      const net = Number(data?.net) || 0;
+      const visits = Number(data?.visits) || 0;
+      const peak = Number(data?.peak) || 0;
+      const games = Number(data?.games) || 0;
+      const runtimeDays = Number(data?.runtimeDays) || 0;
+      const profitScore = net >= 0 ? Math.sqrt(net + 1) * 2.8 : -Math.sqrt(Math.abs(net)) * 2.1;
+      const visitScore = Math.sqrt(Math.max(0, visits)) * 1.6;
+      const peakScore = Math.sqrt(Math.max(0, peak)) * 1.8;
+      const gameScore = games * 22;
+      const enduranceScore = Math.sqrt(Math.max(0, runtimeDays)) * 1.4;
+      return Math.max(0, profitScore + visitScore + peakScore + gameScore + enduranceScore);
+    }
+    function parseJson(raw, fallback) {
+      try { return JSON.parse(raw); } catch { return fallback; }
+    }
+    function canUseSupabaseGlobal() {
+      return String(globalCfg.provider || "").toLowerCase() === "supabase"
+        && Boolean(globalCfg.supabaseUrl)
+        && Boolean(globalCfg.supabaseAnonKey)
+        && Boolean(globalCfg.table);
+    }
+    function analyzeGames(gamesInput) {
+      const games = Array.isArray(gamesInput) ? gamesInput : [];
+      const totalVisits = games.reduce((sum, g) => sum + (Number(g?.totalVisits) || 0), 0);
+      const peakPlayers = games.reduce((peak, g) => Math.max(peak, Number(g?.peakPlayers) || 0), 0);
+      const totalUpdates = games.reduce((sum, g) => sum + (Number(g?.updates) || 0), 0);
+      const totalScore = games.reduce((sum, g) => sum + (Number(g?.score) || 0), 0);
+      const deadGames = games.filter((g) => Boolean(g?.dead)).length;
+      const activeGames = games.length - deadGames;
+      const bestGame = games.reduce((best, g) => {
+        const score = Number(g?.score) || 0;
+        if (!best || score > best.score) {
+          return {
+            title: g?.title || "Untitled",
+            score,
+            peakPlayers: Number(g?.peakPlayers) || 0,
+            visits: Number(g?.totalVisits) || 0
+          };
+        }
+        return best;
+      }, null);
+      const totalPayout = games.reduce((sum, g) => sum + (Number(g?.lifetimePayout) || 0), 0);
+      return {
+        totalVisits,
+        peakPlayers,
+        totalUpdates,
+        avgScore: games.length ? (totalScore / games.length) : 0,
+        deadGames,
+        activeGames,
+        bestGame,
+        totalPayout
+      };
+    }
+
+    function getHistoricalRecords() {
+      const parsed = parseJson(localStorage.getItem(leaderboardKey), []);
+      return Array.isArray(parsed) ? parsed : [];
+    }
+
+    async function getRemoteRecords() {
+      if (!canUseSupabaseGlobal()) return [];
+      const urlBase = String(globalCfg.supabaseUrl || "").replace(/\/+$/, "");
+      const table = encodeURIComponent(String(globalCfg.table || "leaderboard_runs"));
+      const query = "select=studioName,score,cash,net,visits,peak,games,activeGames,deadGames,avgScore,updates,totalPayout,debt,reputation,creditScore,teamSize,revenue,expense,bestGameTitle,bestGameScore,bestGamePeak,bestGameVisits,runtime,runtimeDays,source,createdAt&order=score.desc&limit=300";
+      try {
+        const res = await fetch(`${urlBase}/rest/v1/${table}?${query}`, {
+          headers: {
+            "apikey": String(globalCfg.supabaseAnonKey),
+            "Authorization": `Bearer ${String(globalCfg.supabaseAnonKey)}`
+          }
+        });
+        if (!res.ok) return [];
+        const rows = await res.json();
+        return Array.isArray(rows) ? rows : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function getActiveRecords() {
+      const records = [];
+      for (let i = 1; i <= 3; i += 1) {
+        const slot = parseJson(localStorage.getItem(`rbx_dev_slot_${i}`), null);
+        if (!slot) continue;
+        const games = Array.isArray(slot.games) ? slot.games : [];
+        const gameStats = analyzeGames(games);
+        const revenue = Number(slot?.pnl?.revenue) || 0;
+        const expense = Number(slot?.pnl?.expense) || 0;
+        const net = revenue - expense;
+        const runtimeDays = Math.max(0, (Number(slot?.week) || 1) - 1);
+        records.push({
+          studioName: slot.studioName || `Slot ${i} Studio`,
+          score: Math.round(calculateStudioScore({
+            net,
+            visits: gameStats.totalVisits,
+            peak: gameStats.peakPlayers,
+            games: games.length,
+            runtimeDays
+          })),
+          cash: Number(slot?.cash) || 0,
+          net,
+          visits: gameStats.totalVisits,
+          peak: gameStats.peakPlayers,
+          games: games.length,
+          activeGames: gameStats.activeGames,
+          deadGames: gameStats.deadGames,
+          avgScore: gameStats.avgScore,
+          updates: gameStats.totalUpdates,
+          totalPayout: gameStats.totalPayout,
+          debt: Array.isArray(slot?.loans) ? slot.loans.reduce((sum, l) => sum + (Number(l?.balance) || 0), 0) : 0,
+          reputation: Number(slot?.reputation) || 0,
+          creditScore: Number(slot?.creditScore) || 0,
+          teamSize: Object.values(slot?.staff || {}).reduce((sum, n) => sum + (Number(n) || 0), 0),
+          revenue,
+          expense,
+          bestGameTitle: gameStats.bestGame ? gameStats.bestGame.title : "N/A",
+          bestGameScore: gameStats.bestGame ? gameStats.bestGame.score : 0,
+          bestGamePeak: gameStats.bestGame ? gameStats.bestGame.peakPlayers : 0,
+          bestGameVisits: gameStats.bestGame ? gameStats.bestGame.visits : 0,
+          runtime: formatDuration(runtimeDays),
+          runtimeDays,
+          source: `active-slot-${i}`,
+          createdAt: Date.now()
+        });
+      }
+      return records;
+    }
+
+    async function mergedTop100() {
+      const remote = await getRemoteRecords();
+      const all = [...getHistoricalRecords(), ...remote, ...getActiveRecords()];
+      return all
+        .sort((a, b) => (Number(b.score) - Number(a.score)) || (Number(b.visits) - Number(a.visits)) || (Number(b.net) - Number(a.net)))
+        .slice(0, 100);
+    }
+
+    function detailCard(label, value, cls = "") {
+      return `<div class="stat"><small>${label}</small><b class="${cls}">${value}</b></div>`;
+    }
+
+    function renderDetails(entry) {
+      detailTitle.textContent = `${entry.studioName} Profile`;
+      detailHint.style.display = "none";
+      detailWrap.style.display = "block";
+      const netClass = Number(entry.net) >= 0 ? "good" : "bad";
+      const source = String(entry.source || "").startsWith("active-slot") ? "Active Save" : "Archived Run";
+      detailStats.innerHTML =
+        detailCard("Leaderboard Score", fmtNum(entry.score)) +
+        detailCard("Status", source) +
+        detailCard("Runtime", entry.runtime || formatDuration(entry.runtimeDays)) +
+        detailCard("Cash", fmtMoney(entry.cash)) +
+        detailCard("Net Profit/Loss", fmtMoney(entry.net), netClass) +
+        detailCard("Debt", fmtMoney(entry.debt)) +
+        detailCard("Revenue", fmtMoney(entry.revenue)) +
+        detailCard("Expense", fmtMoney(entry.expense)) +
+        detailCard("Total Visits", fmtNum(entry.visits)) +
+        detailCard("Peak Players", fmtNum(entry.peak)) +
+        detailCard("Published Games", fmtNum(entry.games)) +
+        detailCard("Active vs Dead", `${fmtNum(entry.activeGames)} / ${fmtNum(entry.deadGames)}`) +
+        detailCard("Average Game Score", fmtOne(entry.avgScore)) +
+        detailCard("Total Updates", fmtNum(entry.updates)) +
+        detailCard("Lifetime Payout", fmtMoney(entry.totalPayout)) +
+        detailCard("Credit Score", fmtNum(entry.creditScore)) +
+        detailCard("Reputation", fmtOne(entry.reputation)) +
+        detailCard("Team Size", fmtNum(entry.teamSize)) +
+        detailCard("Best Game", `${entry.bestGameTitle || "N/A"} (${fmtOne(entry.bestGameScore)})`) +
+        detailCard("Best Game Peak", fmtNum(entry.bestGamePeak)) +
+        detailCard("Best Game Visits", fmtNum(entry.bestGameVisits));
+    }
+
+    async function render() {
+      const ranked = await mergedTop100();
+      rowBody.innerHTML = "";
+      if (!ranked.length) {
+        rowBody.innerHTML = '<tr><td colspan="8">No entries yet. Play in <b>index.html</b> and disband a run to archive it.</td></tr>';
+        detailTitle.textContent = "Run Details";
+        detailHint.style.display = "block";
+        detailWrap.style.display = "none";
+        return;
+      }
+
+      ranked.forEach((entry, idx) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML =
+          `<td>${idx + 1}</td>` +
+          `<td>${entry.studioName || "Studio"}</td>` +
+          `<td>${fmtNum(entry.score)}</td>` +
+          `<td class="${Number(entry.net) >= 0 ? "good" : "bad"}">${fmtMoney(entry.net)}</td>` +
+          `<td>${fmtNum(entry.visits)}</td>` +
+          `<td>${fmtNum(entry.games)}</td>` +
+          `<td>${entry.runtime || formatDuration(entry.runtimeDays)}</td>` +
+          `<td>${String(entry.source || "").startsWith("active-slot") ? "Active" : "Archived"}</td>`;
+        tr.addEventListener("click", () => {
+          document.querySelectorAll("tr.active").forEach((x) => x.classList.remove("active"));
+          tr.classList.add("active");
+          renderDetails(entry);
+        });
+        rowBody.appendChild(tr);
+      });
+
+      rowBody.querySelector("tr")?.click();
+    }
+
+    document.getElementById("refreshBtn").addEventListener("click", () => { void render(); });
+    void render();
+  </script>
+</body>
+</html>

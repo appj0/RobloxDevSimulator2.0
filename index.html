@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BlockForge Roblox Dev Simulator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-deep: #0e1a2b;
+      --bg-mid: #17314f;
+      --bg-glow: #f4b942;
+      --panel: rgba(8, 17, 30, 0.82);
+      --panel-soft: rgba(255, 255, 255, 0.08);
+      --text: #f5f8fc;
+      --muted: #a8bed8;
+      --good: #6fe7ad;
+      --bad: #ff7f7f;
+      --warn: #ffd16b;
+      --accent: #5dc5ff;
+      --line: rgba(255, 255, 255, 0.16);
+      --shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
+      --radius: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: "Outfit", sans-serif;
+      background:
+        radial-gradient(circle at 15% 10%, rgba(244, 185, 66, 0.22), transparent 38%),
+        radial-gradient(circle at 82% 78%, rgba(93, 197, 255, 0.2), transparent 30%),
+        linear-gradient(145deg, var(--bg-deep), var(--bg-mid));
+      color: var(--text);
+      padding: 14px;
+      overflow: hidden;
+    }
+
+    .shell {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: grid;
+      gap: 10px;
+      height: calc(100vh - 28px);
+      grid-template-rows: auto 1fr;
+    }
+
+    .hero {
+      background: linear-gradient(130deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 12px 14px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(244, 185, 66, 0.35), transparent 68%);
+      right: -40px;
+      top: -40px;
+    }
+
+    h1 {
+      font-family: "Bebas Neue", sans-serif;
+      letter-spacing: 0.06em;
+      font-size: clamp(1.8rem, 3vw, 2.45rem);
+      font-weight: 400;
+      line-height: 1;
+      margin-bottom: 5px;
+    }
+
+    .tag {
+      color: var(--muted);
+      max-width: 780px;
+      line-height: 1.3;
+      font-size: 0.9rem;
+    }
+
+    .grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: 1.15fr 1fr;
+      min-height: 0;
+    }
+
+    .col {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+      min-height: 0;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 10px;
+      backdrop-filter: blur(4px);
+    }
+
+    .card h2 {
+      font-family: "Bebas Neue", sans-serif;
+      font-weight: 400;
+      letter-spacing: 0.05em;
+      font-size: 1.2rem;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .collapse-btn {
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 4px 8px;
+      font-size: 0.72rem;
+      cursor: pointer;
+    }
+
+    .card.collapsed > :not(h2) {
+      display: none;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 7px;
+    }
+
+    .stat {
+      background: var(--panel-soft);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      padding: 8px;
+    }
+
+    .stat small {
+      display: block;
+      color: var(--muted);
+      font-size: 0.68rem;
+      margin-bottom: 3px;
+      letter-spacing: 0.04em;
+    }
+
+    .stat strong {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .row {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: 1fr 1fr;
+      margin-bottom: 8px;
+    }
+
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-bottom: 6px;
+      letter-spacing: 0.03em;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.92rem;
+      padding: 10px;
+    }
+
+    select {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      padding-right: 38px;
+      background-image:
+        linear-gradient(45deg, transparent 50%, #a8bed8 50%),
+        linear-gradient(135deg, #a8bed8 50%, transparent 50%);
+      background-position:
+        calc(100% - 18px) calc(50% - 2px),
+        calc(100% - 12px) calc(50% - 2px);
+      background-size: 6px 6px, 6px 6px;
+      background-repeat: no-repeat;
+    }
+
+    select option {
+      background: #10243d;
+      color: #f5f8fc;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      outline: 2px solid rgba(93, 197, 255, 0.55);
+      border-color: transparent;
+    }
+
+    textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    .budget-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .budget-item {
+      display: grid;
+      grid-template-columns: 1fr 130px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .budget-item span {
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-family: inherit;
+      font-weight: 600;
+      color: #0b1220;
+      background: linear-gradient(130deg, #ffd16b, #f4b942);
+      cursor: pointer;
+      transition: transform 0.15s ease, filter 0.15s ease;
+    }
+
+    button.alt {
+      background: linear-gradient(130deg, #86d6ff, #5dc5ff);
+    }
+
+    button:disabled {
+      filter: grayscale(0.65);
+      cursor: not-allowed;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+    }
+
+    .meta {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.86rem;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .loan-list, .log {
+      display: grid;
+      gap: 8px;
+      max-height: 220px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .game-list {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      max-height: 470px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .mini-card {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+
+    .mini-card b {
+      color: #ffffff;
+    }
+
+    .game-card {
+      background: linear-gradient(170deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 12px;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+      font-size: 0.82rem;
+    }
+
+    .game-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .chip {
+      border-radius: 999px;
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.06);
+      white-space: nowrap;
+    }
+
+    .chip.good {
+      border-color: rgba(111, 231, 173, 0.4);
+      color: #6fe7ad;
+      background: rgba(111, 231, 173, 0.12);
+    }
+
+    .chip.warn {
+      border-color: rgba(255, 209, 107, 0.4);
+      color: #ffd16b;
+      background: rgba(255, 209, 107, 0.12);
+    }
+
+    .chip.bad {
+      border-color: rgba(255, 127, 127, 0.4);
+      color: #ff7f7f;
+      background: rgba(255, 127, 127, 0.12);
+    }
+
+    .kv-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .kv {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 9px;
+      padding: 6px;
+    }
+
+    .kv small {
+      display: block;
+      color: var(--muted);
+      font-size: 0.68rem;
+      margin-bottom: 2px;
+    }
+
+    .mini-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .mini-actions button {
+      padding: 7px 10px;
+      font-size: 0.8rem;
+      border-radius: 8px;
+    }
+
+    .progress-wrap {
+      margin-top: 10px;
+    }
+
+    .progress-track {
+      height: 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #86d6ff, #5dc5ff);
+      transition: width 0.3s ease;
+    }
+
+    .good { color: var(--good); }
+    .bad { color: var(--bad); }
+    .warn { color: var(--warn); }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1200;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(244, 185, 66, 0.18), transparent 40%),
+        radial-gradient(circle at 80% 70%, rgba(93, 197, 255, 0.16), transparent 38%),
+        rgba(8, 14, 24, 0.92);
+      backdrop-filter: blur(6px);
+    }
+
+    .overlay-card {
+      width: min(860px, 100%);
+      background: rgba(8, 17, 30, 0.94);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+
+    .creator-overlay-card {
+      width: min(1100px, 100%);
+      max-height: 92vh;
+      overflow: auto;
+    }
+
+    .gp-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .gp-row {
+      display: grid;
+      grid-template-columns: auto 1fr 130px;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .summary-grid {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .summary-item {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      padding: 8px;
+    }
+
+    .summary-item small {
+      display: block;
+      color: var(--muted);
+      font-size: 0.72rem;
+      margin-bottom: 4px;
+    }
+
+    .summary-item strong {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .slot-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .slot-btn {
+      width: 100%;
+      text-align: left;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      padding: 12px;
+      border-radius: 12px;
+      font-family: inherit;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .slot-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .slot-btn small {
+      display: block;
+      color: var(--muted);
+      margin-top: 4px;
+      font-size: 0.78rem;
+    }
+
+    .slot-create {
+      margin-top: 12px;
+      display: none;
+      gap: 10px;
+      grid-template-columns: 1fr auto;
+      align-items: end;
+    }
+
+    .slot-create.active {
+      display: grid;
+    }
+
+    @media (max-width: 950px) {
+      body {
+        overflow: auto;
+      }
+      .shell {
+        height: auto;
+      }
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      .col {
+        overflow: visible;
+      }
+    }
+
+    @media (max-width: 630px) {
+      body {
+        padding: 12px;
+      }
+      .row, .budget-item {
+        grid-template-columns: 1fr;
+      }
+      .stats {
+        grid-template-columns: 1fr 1fr;
+      }
+      .slot-grid {
+        grid-template-columns: 1fr;
+      }
+      .slot-create, .slot-create.active {
+        grid-template-columns: 1fr;
+      }
+      .summary-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .gp-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="saveOverlay" class="overlay">
+    <div class="overlay-card">
+      <h2 style="margin-bottom: 4px;">Choose Save Slot</h2>
+      <div style="color: var(--muted); font-size: 0.92rem;">Pick one of 3 save slots. New slots need a studio name, and that name is permanent.</div>
+      <div id="slotGrid" class="slot-grid">
+        <button class="slot-btn" data-slot="1"></button>
+        <button class="slot-btn" data-slot="2"></button>
+        <button class="slot-btn" data-slot="3"></button>
+      </div>
+      <div id="slotCreate" class="slot-create">
+        <div>
+          <label for="slotStudioName">Dev Studio Name (cannot be changed later)</label>
+          <input id="slotStudioName" maxlength="40" placeholder="Enter studio name" />
+        </div>
+        <button id="slotCreateBtn">Create Save</button>
+      </div>
+    </div>
+  </div>
+  <div id="disbandOverlay" class="overlay" style="display: none;">
+    <div class="overlay-card">
+      <h2 style="margin-bottom: 4px;">Studio Closed</h2>
+      <div id="disbandLead" style="color: var(--muted); font-size: 0.92rem;">Your final report is ready.</div>
+      <div class="summary-grid">
+        <div class="summary-item"><small>Runtime</small><strong id="sumRuntime">0y 0m 0d</strong></div>
+        <div class="summary-item"><small>Final Balance</small><strong id="sumCash">R$0</strong></div>
+        <div class="summary-item"><small>Net Profit/Loss</small><strong id="sumNet">R$0</strong></div>
+        <div class="summary-item"><small>Published Games</small><strong id="sumGames">0</strong></div>
+        <div class="summary-item"><small>Total Visits</small><strong id="sumVisits">0</strong></div>
+        <div class="summary-item"><small>Peak Players</small><strong id="sumPeak">0</strong></div>
+        <div class="summary-item"><small>Total Revenue</small><strong id="sumRevenue">R$0</strong></div>
+        <div class="summary-item"><small>Total Expenses</small><strong id="sumExpense">R$0</strong></div>
+        <div class="summary-item"><small>Total Updates</small><strong id="sumUpdates">0</strong></div>
+      </div>
+      <div style="margin-top: 12px; color: var(--muted); font-size: 0.84rem;">This slot has been permanently deleted.</div>
+      <div class="actions">
+        <button id="disbandContinueBtn" class="alt">Back To Save Slots</button>
+      </div>
+    </div>
+  </div>
+  <div id="adOverlay" class="overlay" style="display: none;">
+    <div class="overlay-card">
+      <h2 style="margin-bottom: 4px;">Release Day Ad Campaign</h2>
+      <div id="adLead" style="color: var(--muted); font-size: 0.92rem;">Set your ad spend before launch.</div>
+      <div class="row" style="margin-top: 10px;">
+        <div>
+          <label for="adSpendInput">Ad Spend (R$)</label>
+          <input id="adSpendInput" type="number" min="1" step="1" placeholder="Enter Robux spend" />
+        </div>
+        <div>
+          <label>Available Balance</label>
+          <input id="adCashView" readonly value="R$0" />
+        </div>
+      </div>
+      <div style="color: var(--muted); font-size: 0.84rem;">Higher spend can increase launch traffic. If you run ads, amount is required.</div>
+      <div class="actions">
+        <button id="adLaunchBtn" class="alt">Launch With Ads</button>
+        <button id="adSkipBtn">Launch Without Ads</button>
+      </div>
+    </div>
+  </div>
+  <div id="creatorOverlay" class="overlay" style="display: none;">
+    <div class="overlay-card creator-overlay-card">
+      <h2 style="margin-bottom: 8px;">Experience Builder</h2>
+      <div class="row">
+        <div>
+          <label for="title">Game Title</label>
+          <input id="title" maxlength="55" placeholder="e.g. Pet Planet Rush" />
+        </div>
+        <div>
+          <label for="genre">Game Type</label>
+          <select id="genre">
+            <option value="simulator">Simulator</option>
+            <option value="obby">Obby</option>
+            <option value="roleplay">Roleplay</option>
+            <option value="tycoon">Tycoon</option>
+            <option value="shooter">Shooter</option>
+            <option value="horror">Horror</option>
+            <option value="rpg">RPG</option>
+            <option value="survival">Survival</option>
+            <option value="sandbox">Sandbox</option>
+            <option value="racing">Racing</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label for="description">Core Concept</label>
+        <textarea id="description" maxlength="240" placeholder="Describe gameplay loop, progression, and audience target."></textarea>
+      </div>
+      <div class="budget-list">
+        <div class="budget-item"><span>Scripting</span><input class="budget" id="bScript" type="number" min="0" step="1" value="5" /></div>
+        <div class="budget-item"><span>Map & Assets</span><input class="budget" id="bArt" type="number" min="0" step="1" value="10" /></div>
+        <div class="budget-item"><span>Systems & Economy</span><input class="budget" id="bSystems" type="number" min="0" step="1" value="12" /></div>
+        <div class="budget-item"><span>UI / UX</span><input class="budget" id="bUi" type="number" min="0" step="1" value="7" /></div>
+        <div class="budget-item"><span>Ads & Creator Boosts</span><input class="budget" id="bAds" type="number" min="0" step="1" value="8" /></div>
+        <div class="budget-item"><span>Live Ops & Events</span><input class="budget" id="bOps" type="number" min="0" step="1" value="5" /></div>
+      </div>
+      <div style="margin-top: 10px;">
+        <label>Budget Presets</label>
+        <div style="margin-bottom: 8px;"><input id="presetBudgetTotal" type="number" min="1" step="1" placeholder="Enter total budget to split (e.g. 120)" /></div>
+        <div class="actions" style="margin-top: 0;">
+          <button id="riskLowBtn" class="alt">Low Risk</button>
+          <button id="riskMedBtn" class="alt">Medium Risk</button>
+          <button id="riskHighBtn">High Risk</button>
+        </div>
+      </div>
+      <div class="row" style="margin-top: 10px;">
+        <div>
+          <label for="devDays">Development Days (you choose)</label>
+          <input id="devDays" type="number" min="2" max="420" step="1" placeholder="e.g. 42" />
+        </div>
+        <div>
+          <label>Advised Timeline</label>
+          <input id="advisedDays" value="Set budget to calculate" readonly />
+        </div>
+      </div>
+      <div style="margin-top: 8px;">
+        <label>Gamepasses (optional; pricing decides conversions)</label>
+        <div class="gp-list">
+          <div class="gp-row"><input id="gp1Enabled" type="checkbox" checked /><span>Gamepass #1</span><input id="gp1Price" type="number" min="1" step="1" value="99" /></div>
+          <div class="gp-row"><input id="gp2Enabled" type="checkbox" /><span>Gamepass #2</span><input id="gp2Price" type="number" min="1" step="1" value="199" /></div>
+          <div class="gp-row"><input id="gp3Enabled" type="checkbox" /><span>Gamepass #3</span><input id="gp3Price" type="number" min="1" step="1" value="399" /></div>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="releaseBtn">Start Development</button>
+        <button id="closeCreatorBtn" class="alt">Back To Dashboard</button>
+      </div>
+    </div>
+  </div>
+
+  <main class="shell">
+    <section class="hero">
+      <h1 id="studioNameDisplay">BlockForge Studio</h1>
+      <p class="tag">Start with just <b>R$30</b>, build Roblox experiences, manage your dev budget, survive bad launches, and grow into a top studio through smart updates and funding decisions.</p>
+    </section>
+
+    <section class="grid">
+      <div class="col">
+        <article class="card">
+          <h2>Dev Dashboard</h2>
+          <div style="margin-bottom: 10px;">
+            <label>Studio Name</label>
+            <input id="studioNameInput" value="BlockForge Studio" readonly />
+          </div>
+          <div class="stats">
+            <div class="stat"><small>Day</small><strong id="weekVal">1</strong></div>
+            <div class="stat"><small>Robux Balance</small><strong id="cashVal">R$30</strong></div>
+            <div class="stat"><small>Credit Score</small><strong id="creditVal">650</strong></div>
+            <div class="stat"><small>Community Size</small><strong id="playersVal">120</strong></div>
+            <div class="stat"><small>Dev Reputation</small><strong id="repVal">50 / 100</strong></div>
+            <div class="stat"><small>Total Debt</small><strong id="debtVal">R$0</strong></div>
+            <div class="stat"><small>Published Games</small><strong id="gamesVal">0</strong></div>
+            <div class="stat"><small>Total Visits</small><strong id="visitsVal">0</strong></div>
+            <div class="stat"><small>Monetization Deals</small><strong id="dealsVal">0</strong></div>
+            <div class="stat"><small>Team Size</small><strong id="teamVal">0</strong></div>
+          </div>
+          <div class="actions">
+            <button id="nextWeekBtn" class="alt">Next Day</button>
+            <button class="alt" onclick="window.location.href='leaderboard.html'">Open Leaderboard Page</button>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Computer / House Upgrades</h2>
+          <div class="row">
+            <div>
+              <label>Current Upgrade</label>
+              <input id="workspaceTierView" value="Used Laptop + Bedroom" readonly />
+            </div>
+            <div>
+              <label>Weekly Cost</label>
+              <input id="workspaceRentView" value="R$0" readonly />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Next Upgrade</label>
+              <input id="nextUpgradeView" value="N/A" readonly />
+            </div>
+            <div>
+              <label>Upgrade Price</label>
+              <input id="nextUpgradeCostView" value="R$0" readonly />
+            </div>
+          </div>
+          <div class="actions">
+            <button id="upgradeBtn" class="alt">Buy Next Upgrade</button>
+          </div>
+          <div style="color: var(--muted); font-size: 0.84rem;">
+            Upgrade upkeep is charged weekly (every 7 days).
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Team Management</h2>
+          <div class="row">
+            <div>
+              <label for="hireRole">Role</label>
+              <select id="hireRole">
+                <option value="scripter">Scripter</option>
+                <option value="builder">Builder</option>
+                <option value="uiux">UI/UX Designer</option>
+                <option value="vfx">VFX Artist</option>
+                <option value="qa">QA Tester</option>
+                <option value="community">Community Manager</option>
+              </select>
+            </div>
+            <div>
+              <label>Selected Role Count</label>
+              <input id="roleCountView" value="0" readonly />
+            </div>
+          </div>
+          <div class="actions">
+            <button id="hireBtn">Hire</button>
+            <button id="fireBtn" class="alt">Fire</button>
+          </div>
+          <div class="meta">
+            <div>Weekly Payroll: <b id="payrollVal">R$0</b></div>
+            <div>Hiring Fee: <b id="hireCostVal">R$0</b></div>
+          </div>
+          <div style="margin-top: 10px; color: var(--muted); font-size: 0.84rem;">
+            Staff are paid weekly. Better staff speeds up development, raises quality, and improves update performance.
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Build Experience</h2>
+          <div style="color: var(--muted); font-size: 0.86rem;">Use the full-screen builder to configure title, budget, dev days, and multiple gamepasses.</div>
+          <div class="actions">
+            <button id="openCreatorBtn" class="alt">Open Experience Builder</button>
+          </div>
+
+          <div class="meta">
+            <div>Total Budget: <b id="totalBudget">R$47</b></div>
+            <div>Estimated Risk: <b id="riskView" class="warn">Medium</b></div>
+            <div>Publish ETA: <b id="publishEta">No active project</b></div>
+          </div>
+
+          <div class="progress-wrap">
+            <div style="font-size: 0.86rem; color: var(--muted); margin-bottom: 6px;">Build Progress: <b id="prodStatus">No active development</b></div>
+            <div class="progress-track">
+              <div id="prodFill" class="progress-fill"></div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button id="releaseBtn">Start Development</button>
+            <button id="disbandBtn">File for Quits / Disband</button>
+          </div>
+        </article>
+      </div>
+
+      <div class="col">
+        <article class="card">
+          <h2>Funding Desk</h2>
+          <div class="row">
+            <div>
+              <label for="loanAmount">Funding Amount</label>
+              <input id="loanAmount" type="number" min="50" step="10" value="300" />
+            </div>
+            <div>
+              <label for="loanTerm">Term (Months)</label>
+              <select id="loanTerm">
+                <option value="6">6</option>
+                <option value="12" selected>12</option>
+                <option value="18">18</option>
+              </select>
+            </div>
+          </div>
+          <div class="meta">
+            <div>Current APR Offer: <b id="aprOffer">15.0%</b></div>
+            <div>Available Credit: <b id="creditLimit">R$0</b></div>
+          </div>
+          <div class="actions">
+            <button id="loanBtn" class="alt">Take Funding</button>
+          </div>
+          <div style="margin-top: 10px; color: var(--muted); font-size: 0.84rem;">
+            Late payments hurt reputation and borrowing power. Better score gives bigger, cheaper funding.
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Active Funding</h2>
+          <div id="loanList" class="loan-list"></div>
+        </article>
+
+        <article class="card">
+          <h2>Profit & Loss</h2>
+          <div class="stats">
+            <div class="stat"><small>Total Revenue</small><strong id="pnlRevenue">R$0</strong></div>
+            <div class="stat"><small>Total Expenses</small><strong id="pnlExpense">R$0</strong></div>
+            <div class="stat"><small>Net Profit / Loss</small><strong id="pnlNet">R$0</strong></div>
+            <div class="stat"><small>Margin</small><strong id="pnlMargin">0%</strong></div>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Platform Notes</h2>
+          <div style="margin-top: 10px; color: var(--muted); font-size: 0.84rem;">
+            Launches generate weekly payouts based on visits, retention, and monetization quality. Gamepass sales depend on pricing and player conversion, and can be zero.
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Trend Radar</h2>
+          <div class="meta">
+            <div>Trending Genre: <b id="trendGenre">Simulator</b></div>
+            <div>Refresh In: <b id="trendDaysLeft">14d</b></div>
+          </div>
+          <div style="margin-top: 8px; color: var(--muted); font-size: 0.84rem;">
+            Releasing games in the trending genre gives extra launch momentum.
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Daily Missions</h2>
+          <div id="missionList" class="log"></div>
+        </article>
+
+        <article class="card">
+          <h2>Sponsor Contract</h2>
+          <div id="contractBox" class="mini-card">No active contract.</div>
+          <div class="actions">
+            <button id="acceptContractBtn" class="alt">Accept / Refresh Contract</button>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Power Actions</h2>
+          <div class="actions">
+            <button id="actionDevJamBtn" class="alt">Dev Jam</button>
+            <button id="actionCommunityBtn" class="alt">Community Blast</button>
+            <button id="actionQaBtn">QA Sprint</button>
+          </div>
+          <div class="meta">
+            <div>Action Cooldown: <b id="actionCooldownView">Ready</b></div>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Mystery Crate</h2>
+          <div style="color: var(--muted); font-size: 0.84rem;">Spend R$150 for a random studio event (good or bad).</div>
+          <div class="actions">
+            <button id="mysteryCrateBtn">Open Crate</button>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Achievements</h2>
+          <div id="achievementList" class="log"></div>
+        </article>
+
+        <article class="card">
+          <h2>Release History</h2>
+          <div id="gameList" class="game-list"></div>
+        </article>
+
+        <article class="card">
+          <h2>Studio Log</h2>
+          <div id="log" class="log"></div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
