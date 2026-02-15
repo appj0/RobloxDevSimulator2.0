@@ -351,7 +351,15 @@ async function pushGlobalLeaderboardRecord(record) {
 
 function saveLeaderboardRecord(summary, source = "retired") {
   const records = loadLeaderboardRecords();
-  const entry = {
+  const entry = buildLeaderboardEntry(summary, source);
+  records.push(entry);
+  records.sort((a, b) => (b.score - a.score) || (b.visits - a.visits) || (b.net - a.net));
+  localStorage.setItem(leaderboardKey, JSON.stringify(records.slice(0, 100)));
+  void pushGlobalLeaderboardRecord(entry);
+}
+
+function buildLeaderboardEntry(summary, source) {
+  return {
     studioName: summary.studioName || "Studio",
     score: Number(summary.score) || 0,
     cash: Number(summary.cash) || 0,
@@ -379,9 +387,13 @@ function saveLeaderboardRecord(summary, source = "retired") {
     source,
     createdAt: Date.now()
   };
-  records.push(entry);
-  records.sort((a, b) => (b.score - a.score) || (b.visits - a.visits) || (b.net - a.net));
-  localStorage.setItem(leaderboardKey, JSON.stringify(records.slice(0, 100)));
+}
+
+function maybeSyncGlobalActiveSnapshot() {
+  if (!canUseSupabaseGlobal()) return;
+  if (state.week <= 0 || state.week % 3 !== 0) return;
+  const summary = buildDisbandSummary();
+  const entry = buildLeaderboardEntry(summary, "active-sync");
   void pushGlobalLeaderboardRecord(entry);
 }
 
@@ -1557,6 +1569,7 @@ function nextWeek() {
   progressProductionWeek();
   updateContractProgress();
   settleContractIfNeeded();
+  maybeSyncGlobalActiveSnapshot();
   if (state.cash < 0) state.creditScore = clamp(state.creditScore - rand(4, 8), 380, 850);
   renderStats();
 }

@@ -147,6 +147,7 @@
     <section class="hero">
       <h1>Global Studio Leaderboard</h1>
       <div class="muted">Top 100 is combined from archived disbanded runs and active save slots.</div>
+      <div id="dataStatus" class="muted">Data source: local + active slots</div>
       <div class="toolbar">
         <a class="link-btn" href="index.html">Back To Dashboard</a>
         <button id="refreshBtn">Refresh Leaderboard</button>
@@ -191,6 +192,7 @@
     const detailHint = document.getElementById("detailHint");
     const detailWrap = document.getElementById("detailWrap");
     const detailStats = document.getElementById("detailStats");
+    const dataStatus = document.getElementById("dataStatus");
     const globalCfg = (window.GLOBAL_DATA_CONFIG && typeof window.GLOBAL_DATA_CONFIG === "object")
       ? window.GLOBAL_DATA_CONFIG
       : {};
@@ -276,7 +278,7 @@
       if (!canUseSupabaseGlobal()) return [];
       const urlBase = String(globalCfg.supabaseUrl || "").replace(/\/+$/, "");
       const table = encodeURIComponent(String(globalCfg.table || "leaderboard_runs"));
-      const query = "select=studioName,score,cash,net,visits,peak,games,activeGames,deadGames,avgScore,updates,totalPayout,debt,reputation,creditScore,teamSize,revenue,expense,bestGameTitle,bestGameScore,bestGamePeak,bestGameVisits,runtime,runtimeDays,source,createdAt&order=score.desc&limit=300";
+      const query = "select=*&order=score.desc&limit=500";
       try {
         const res = await fetch(`${urlBase}/rest/v1/${table}?${query}`, {
           headers: {
@@ -284,12 +286,56 @@
             "Authorization": `Bearer ${String(globalCfg.supabaseAnonKey)}`
           }
         });
-        if (!res.ok) return [];
+        if (!res.ok) {
+          dataStatus.textContent = `Data source: local + active slots (global fetch failed: ${res.status})`;
+          return [];
+        }
         const rows = await res.json();
-        return Array.isArray(rows) ? rows : [];
+        dataStatus.textContent = `Data source: global + local (${Array.isArray(rows) ? rows.length : 0} remote rows loaded)`;
+        return Array.isArray(rows) ? rows.map(normalizeRemoteRecord) : [];
       } catch {
+        dataStatus.textContent = "Data source: local + active slots (global fetch error)";
         return [];
       }
+    }
+
+    function toNum(v) { return Number(v) || 0; }
+    function firstOf(obj, keys, fallback = undefined) {
+      for (const k of keys) {
+        if (obj && obj[k] !== undefined && obj[k] !== null) return obj[k];
+      }
+      return fallback;
+    }
+    function normalizeRemoteRecord(raw) {
+      const runtimeDays = toNum(firstOf(raw, ["runtimeDays", "runtime_days"]));
+      return {
+        studioName: firstOf(raw, ["studioName", "studio_name"], "Studio"),
+        score: toNum(raw.score),
+        cash: toNum(raw.cash),
+        net: toNum(raw.net),
+        visits: toNum(raw.visits),
+        peak: toNum(raw.peak),
+        games: toNum(raw.games),
+        activeGames: toNum(firstOf(raw, ["activeGames", "active_games"])),
+        deadGames: toNum(firstOf(raw, ["deadGames", "dead_games"])),
+        avgScore: toNum(firstOf(raw, ["avgScore", "avg_score"])),
+        updates: toNum(raw.updates),
+        totalPayout: toNum(firstOf(raw, ["totalPayout", "total_payout"])),
+        debt: toNum(raw.debt),
+        reputation: toNum(raw.reputation),
+        creditScore: toNum(firstOf(raw, ["creditScore", "credit_score"])),
+        teamSize: toNum(firstOf(raw, ["teamSize", "team_size"])),
+        revenue: toNum(raw.revenue),
+        expense: toNum(raw.expense),
+        bestGameTitle: firstOf(raw, ["bestGameTitle", "best_game_title"], "N/A"),
+        bestGameScore: toNum(firstOf(raw, ["bestGameScore", "best_game_score"])),
+        bestGamePeak: toNum(firstOf(raw, ["bestGamePeak", "best_game_peak"])),
+        bestGameVisits: toNum(firstOf(raw, ["bestGameVisits", "best_game_visits"])),
+        runtime: firstOf(raw, ["runtime"], runtimeDays > 0 ? formatDuration(runtimeDays) : "0y 0m 0d"),
+        runtimeDays,
+        source: firstOf(raw, ["source"], "remote"),
+        createdAt: toNum(firstOf(raw, ["createdAt", "created_at"], Date.now()))
+      };
     }
 
     function getActiveRecords() {
@@ -341,9 +387,21 @@
       return records;
     }
 
+    function dedupeByStudio(entries) {
+      const keep = new Map();
+      entries.forEach((entry) => {
+        const key = String(entry.studioName || "Studio").trim().toLowerCase();
+        const prev = keep.get(key);
+        if (!prev || Number(entry.score) > Number(prev.score) || (Number(entry.score) === Number(prev.score) && Number(entry.createdAt) > Number(prev.createdAt))) {
+          keep.set(key, entry);
+        }
+      });
+      return Array.from(keep.values());
+    }
+
     async function mergedTop100() {
       const remote = await getRemoteRecords();
-      const all = [...getHistoricalRecords(), ...remote, ...getActiveRecords()];
+      const all = dedupeByStudio([...getHistoricalRecords(), ...remote, ...getActiveRecords()]);
       return all
         .sort((a, b) => (Number(b.score) - Number(a.score)) || (Number(b.visits) - Number(a.visits)) || (Number(b.net) - Number(a.net)))
         .slice(0, 100);
